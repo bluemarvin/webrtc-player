@@ -1,0 +1,7 @@
+.config
+webrtcplayer
+obj
+.DS_Store
+*.swp
+*.o
+*.yuv
