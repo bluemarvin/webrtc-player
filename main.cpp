@@ -10,14 +10,13 @@ static EGLContext   g_EGLContext;
 static EGLSurface   g_EGLWindowSurface;
 
 const GLchar* vertexSource =
-    "#version 120\n"
-    "attribute vec2 position;"
-    "attribute vec2 texcoord;"
-    "varying vec2 varTexcoord;"
-    "void main() {"
-    "   gl_Position = vec4(position, 0.0, 1.0);"
-    "   varTexcoord = texcoord;"
-    "}";
+    "attribute vec2 position;\n"
+    "attribute vec2 texcoord;\n"
+    "varying vec2 varTexcoord;\n"
+    "void main() {\n"
+    "   gl_Position = vec4(position, 0.0, 1.0);\n"
+    "   varTexcoord = texcoord;\n"
+    "}\n";
 
 const GLchar* fragmentSourceGrey =
     "#version 120\n"
@@ -66,12 +65,11 @@ int main(int argc, char *argv[])
   EGLint majorVersion;
   EGLint minorVersion;
 
-  float angle = 0.0f;
-  float colour = 0.0f;
-
   g_EGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
   eglInitialize(g_EGLDisplay, &majorVersion, &minorVersion);
+
+fprintf(stderr, "OpenGL ES %d.%d\n", (int)majorVersion, (int)minorVersion);
 
   eglGetConfigs(g_EGLDisplay, NULL, 0, &numConfigs);
   eglChooseConfig(g_EGLDisplay, s_configAttribs, &g_EGLConfig, 1, &numConfigs);
@@ -155,32 +153,39 @@ int main(int argc, char *argv[])
   glShaderSource(vertexShader, 1, &vertexSource, NULL);
   glCompileShader(vertexShader);
   GLint status;
+  GLint logLength;
   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
   if (status != GL_TRUE) {
-    char buffer[1024];
-    glGetShaderInfoLog(vertexShader, 1024, NULL, buffer);
-    fprintf(stderr, "Compiler error: %s\n", buffer);
+    glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &logLength);
+    char *buffer = new char[logLength + 1];
+    glGetShaderInfoLog(vertexShader, logLength, NULL, buffer);
+    fprintf(stderr, "Vertex compiler error: %s\n", buffer);
+    delete []buffer;
   }
 
   GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
   glCompileShader(fragmentShader);
-  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
+  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status);
   if (status != GL_TRUE) {
-    char buffer[1024];
-    glGetShaderInfoLog(vertexShader, 1024, NULL, buffer);
-    fprintf(stderr, "Compiler error: %s\n", buffer);
+    glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &logLength);
+    char *buffer = new char[logLength + 1];
+    glGetShaderInfoLog(fragmentShader, logLength, NULL, buffer);
+    fprintf(stderr, "Fragment compiler error: %s\n", buffer);
+    delete []buffer;
   }
 
   GLuint shaderProgram = glCreateProgram();
   glAttachShader(shaderProgram, vertexShader);
   glAttachShader(shaderProgram, fragmentShader);
   glLinkProgram(shaderProgram);
-  glGetProgramiv(vertexShader, GL_LINK_STATUS, &status);
+  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &status);
   if (status != GL_TRUE) {
-    char buffer[1024];
-    glGetProgramInfoLog(vertexShader, 1024, NULL, buffer);
+    glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength);
+    char *buffer = new char[logLength + 1];
+    glGetProgramInfoLog(shaderProgram, logLength, NULL, buffer);
     fprintf(stderr, "Program error: %s\n", buffer);
+    delete []buffer;
   }
 
   glUseProgram(shaderProgram);

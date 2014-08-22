@@ -95,7 +95,7 @@ LFLAGS = \
 -fvisibility-inlines-hidden \
 -Wl,--gc-sections \
 -Wl,--copy-dt-needed-entries \
--Wl,-rpath,\$ORIGIN/./lib \
+-Wl,-rpath,\$$ORIGIN/./lib \
 -Wl,-rpath-link,$(ROKU_PLATFORM)/usr/lib \
 -Wl,-Bdynamic -lpthread \
 -Wl,-Bdynamic -lc\
@@ -103,7 +103,6 @@ LFLAGS = \
 -Wl,-Bdynamic -lRokuNDK \
 -Wl,-Bdynamic -lEGL \
 -Wl,-Bdynamic -lGLESv2 \
--Wl,-Bdynamic -lGLESv1_CM \
 -Wl,--no-as-needed \
 -rdynamic \
 -lmozalloc \

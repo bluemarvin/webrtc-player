@@ -4,6 +4,12 @@
 
 include .config
 PLATFORM=Roku
+PKG_DIR=pkg
+PKG_IMAGE_DIR=$(PKG_DIR)/images
+PKG_LIB_DIR=$(PKG_DIR)/lib
+PKG_SOURCE_DIR=$(PKG_DIR)/source
+PKG_FILE=webrtcplayer_cramfs.bin
+
 include build/common.mk
 include build/$(PLATFORM).mk
 
@@ -44,3 +50,28 @@ clean:
 clobber: clean
 	rm -f webrtcplayer
 	rm -rf $(BUILD_DIR)
+	rm -rf $(PKG_DIR)
+	rm -f $(PKG_FILE)
+
+package: webrtcplayer
+	echo Creating package...
+	@rm -f $(PKG_NAME)
+	@rm -rf $(PKG_DIR)
+	@mkdir -p $(PKG_IMAGE_DIR)
+	@mkdir -p $(PKG_LIB_DIR)
+	@mkdir -p $(PKG_SOURCE_DIR)
+	@cp manifest $(PKG_DIR)
+	@cp webrtcplayer $(PKG_DIR)
+	@cp source/main.brs $(PKG_SOURCE_DIR)
+	@cp -L $(GECKO_OBJ)/dist/lib/libmozalloc.so $(PKG_LIB_DIR)
+	@cp -L $(GECKO_OBJ)/dist/lib/libplc4.so $(PKG_LIB_DIR)
+	@cp -L $(GECKO_OBJ)/dist/lib/libnspr4.so $(PKG_LIB_DIR)
+	@cp -L $(GECKO_OBJ)/dist/lib/libplds4.so $(PKG_LIB_DIR)
+	@cp frame.i420 $(PKG_IMAGE_DIR)
+	$(ROKU_NDK)/bin/mkcramfs_roku $(PKG_DIR) $(PKG_FILE)
+
+USERPASS = rokudev:1111
+ROKU_DEV_TARGET = 10.252.120.189
+
+install: package
+	curl -v --user $(USERPASS) --anyauth -S -F "mysubmit=Install" -F "archive=@$(PKG_FILE)" -F "passwd=" http://$(ROKU_DEV_TARGET)/plugin_install

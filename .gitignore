@@ -5,3 +5,5 @@ obj
 *.swp
 *.o
 *.yuv
+pkg
+webrtcplayer_cramfs.bin
