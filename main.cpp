@@ -110,18 +110,17 @@ const GLchar* vertexSource =
     "   varTexcoord = texcoord;\n"
     "}\n";
 
-const GLchar* fragmentSourceGrey =
-    "#version 120\n"
+const GLchar* fragmentSourceGray =
     "varying vec2 varTexcoord;"
     "uniform sampler2D texY;"
     "uniform sampler2D texU;"
     "uniform sampler2D texV;"
     "void main() {"
-    "   vec4 c = texture2D(texY, varTexcoord);" //  * vec4(1.0, 0.0, 0.0, 1.0);"
-    "   gl_FragColor = vec4(c.r, c.r, c.r, 1.0);" //texture2D(texture, varTexcoord);" //  * vec4(1.0, 0.0, 0.0, 1.0);"
+    "   vec4 c = texture2D(texY, varTexcoord);"
+    "   gl_FragColor = vec4(c.r, c.r, c.r, 1.0);"
     "}";
 
-const GLchar *fragmentSource=
+const GLchar *fragmentSource =
   "varying vec2 varTexcoord;\n"
   "uniform sampler2D texY;\n"
   "uniform sampler2D texU;\n"
@@ -178,7 +177,69 @@ int main(int argc, char *argv[])
 
   EGL_CHECK(eglMakeCurrent(g_EGLDisplay, g_EGLWindowSurface, g_EGLWindowSurface, g_EGLContext));
 
+  GLboolean hasCompiler = GL_FALSE;
+  //GL_CHECK(glGetBooleanv(GL_SHADER_COMPILER, &hasCompiler));
+  RLOG("Has compiler: %s\n", (hasCompiler == GL_TRUE ? "True" : "False"));
+
   GL_CHECK(glViewport(0, 0, width, height));
+
+  GLuint vertexShader = GL_CHECK(glCreateShader(GL_VERTEX_SHADER));
+  GL_CHECK(glShaderSource(vertexShader, 1, &vertexSource, NULL));
+  GL_CHECK(glCompileShader(vertexShader));
+  GLint status;
+  GL_CHECK(glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status));
+  if (status != GL_TRUE) {
+    GLint logLength = 0;
+    GL_CHECK(glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &logLength));
+    if (logLength > 0) {
+      char *buffer = new char[logLength + 1];
+      GL_CHECK(glGetShaderInfoLog(vertexShader, logLength, NULL, buffer));
+      RLOG("Vertex compiler error[%d]: %s\n", (int)logLength, buffer);
+      delete []buffer;
+    }
+    else {
+      RLOG("Vertex compiler error: No log available.\n");
+    }
+  }
+
+  GLuint fragmentShader = GL_CHECK(glCreateShader(GL_FRAGMENT_SHADER));
+  GL_CHECK(glShaderSource(fragmentShader, 1, &fragmentSource, NULL));
+  GL_CHECK(glCompileShader(fragmentShader));
+  GL_CHECK(glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status));
+  if (status != GL_TRUE) {
+    GLint logLength = 0;
+    GL_CHECK(glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &logLength));
+    if (logLength > 0) {
+      char *buffer = new char[logLength + 1];
+      GL_CHECK(glGetShaderInfoLog(fragmentShader, logLength, NULL, buffer));
+      RLOG("Fragment compiler error[%d]: %s\n", (int)logLength, buffer);
+      delete []buffer;
+    }
+    else {
+      RLOG("Fragment compiler error: No log available.\n");
+    }
+  }
+
+  GLuint shaderProgram = GL_CHECK(glCreateProgram());
+  GL_CHECK(glAttachShader(shaderProgram, vertexShader));
+  GL_CHECK(glAttachShader(shaderProgram, fragmentShader));
+  GL_CHECK(glLinkProgram(shaderProgram));
+  GL_CHECK(glGetProgramiv(shaderProgram, GL_LINK_STATUS, &status));
+  if (status != GL_TRUE) {
+    GLint logLength = 0;
+    GL_CHECK(glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength));
+    if (logLength > 0) {
+      char *buffer = new char[logLength + 1];
+      GL_CHECK(glGetProgramInfoLog(shaderProgram, logLength, NULL, buffer));
+      RLOG("Program error[%d]: %s\n", (int)logLength, buffer);
+      delete []buffer;
+    }
+    else {
+      RLOG("Program link error: No log available.\n");
+    }
+  }
+
+  GL_CHECK(glUseProgram(shaderProgram));
 
   GLfloat vertices[] = {
     -1.0f, -1.0f,
@@ -228,7 +289,7 @@ int main(int argc, char *argv[])
   GLuint textureU;
   GL_CHECK(glGenTextures(1, &textureU));
   GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureU));
-  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, Width / 2, Height /2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU));
+  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, Width / 2, Height / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -242,47 +303,6 @@ int main(int argc, char *argv[])
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-  GLuint vertexShader = GL_CHECK(glCreateShader(GL_VERTEX_SHADER));
-  GL_CHECK(glShaderSource(vertexShader, 1, &vertexSource, NULL));
-  GL_CHECK(glCompileShader(vertexShader));
-  GLint status;
-  GLint logLength;
-  GL_CHECK(glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status));
-  if (status != GL_TRUE) {
-    glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &logLength);
-    char *buffer = new char[logLength + 1];
-    glGetShaderInfoLog(vertexShader, logLength, NULL, buffer);
-    RLOG("Vertex compiler error: %s\n", buffer);
-    delete []buffer;
-  }
-
-  GLuint fragmentShader = GL_CHECK(glCreateShader(GL_FRAGMENT_SHADER));
-  GL_CHECK(glShaderSource(fragmentShader, 1, &fragmentSource, NULL));
-  GL_CHECK(glCompileShader(fragmentShader));
-  GL_CHECK(glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status));
-  if (status != GL_TRUE) {
-    glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &logLength);
-    char *buffer = new char[logLength + 1];
-    glGetShaderInfoLog(fragmentShader, logLength, NULL, buffer);
-    RLOG("Fragment compiler error: %s\n", buffer);
-    delete []buffer;
-  }
-
-  GLuint shaderProgram = GL_CHECK(glCreateProgram());
-  GL_CHECK(glAttachShader(shaderProgram, vertexShader));
-  GL_CHECK(glAttachShader(shaderProgram, fragmentShader));
-  GL_CHECK(glLinkProgram(shaderProgram));
-  GL_CHECK(glGetProgramiv(shaderProgram, GL_LINK_STATUS, &status));
-  if (status != GL_TRUE) {
-    glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength);
-    char *buffer = new char[logLength + 1];
-    glGetProgramInfoLog(shaderProgram, logLength, NULL, buffer);
-    RLOG("Program error: %s\n", buffer);
-    delete []buffer;
-  }
-
-  GL_CHECK(glUseProgram(shaderProgram));
 
   GLint posAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "position"));
   GLint texAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "texcoord"));
