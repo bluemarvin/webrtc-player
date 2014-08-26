@@ -26,7 +26,7 @@ CFLAGS = \
 -MD \
 -MP \
 -DBUILD_PLATFORM_ROKU2 \
- -Wall \
+-Wall \
 -Wpointer-arith \
 -Woverloaded-virtual \
 -Werror=int-to-pointer-cast \
@@ -61,7 +61,7 @@ LFLAGS = \
 -L$(ROKU_PLATFORM)/lib \
 -L$(ROKU_PLATFORM)/usr/lib \
 -L$(ROKU_PLATFORM)/toolchain/arm-brcm-linux-gnueabi/sys-root/usr/lib \
- -Wl,-z,noexecstack \
+-Wl,-z,noexecstack \
 -Wl,-z,text \
 -Wl,--build-id \
 -L$(GECKO_OBJ)/dist/lib \

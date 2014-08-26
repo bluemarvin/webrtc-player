@@ -70,8 +70,5 @@ package: webrtcplayer
 	@cp frame.i420 $(PKG_IMAGE_DIR)
 	$(ROKU_NDK)/bin/mkcramfs_roku $(PKG_DIR) $(PKG_FILE)
 
-USERPASS = rokudev:1111
-ROKU_DEV_TARGET = 10.252.120.189
-
 install: package
-	curl -v --user $(USERPASS) --anyauth -S -F "mysubmit=Install" -F "archive=@$(PKG_FILE)" -F "passwd=" http://$(ROKU_DEV_TARGET)/plugin_install
+	curl -v --user $(ROKU_USERPASS) --anyauth -S -F "mysubmit=Install" -F "archive=@$(PKG_FILE)" -F "passwd=" http://$(ROKU_DEV_TARGET)/plugin_install
