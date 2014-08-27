@@ -49,7 +49,7 @@ $(LIB_ROLLUP): $(LIBS)
 	@mkdir -p $(BUILD_DIR)
 	$(AR) cr $@ `python ./tools/expand.py $(LIBS)`
 
--include $(OBJ_FILES:.o=.d)
+#-include $(OBJ_FILES:.o=.d)
 
 clean:
 	rm -f $(LIB_ROLLUP) $(BUILD_DIR)/main.o

@@ -145,11 +145,21 @@ const GLchar *fragmentSource =
 
 int main(int argc, char *argv[])
 {
-  const EGLint s_configAttribs[] =
-  {
+  static const EGLint configAttribs[] = {
+    EGL_RENDERABLE_TYPE,     EGL_OPENGL_ES2_BIT,
+    EGL_BUFFER_SIZE,        32,
+    EGL_RED_SIZE,       8,
+    EGL_GREEN_SIZE,     8,
+    EGL_BLUE_SIZE,      8,
+    EGL_ALPHA_SIZE,     8,
     EGL_DEPTH_SIZE,     0,
+    EGL_STENCIL_SIZE,   0,
+    EGL_SAMPLE_BUFFERS, 0,
     EGL_NONE
   };
+
+  static const EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
+
 
   EGLint numConfigs;
   EGLint majorVersion;
@@ -162,9 +172,9 @@ int main(int argc, char *argv[])
   RLOG("EGL v%d.%d\n", (int)majorVersion, (int)minorVersion);
 
   EGL_CHECK(eglGetConfigs(g_EGLDisplay, NULL, 0, &numConfigs));
-  EGL_CHECK(eglChooseConfig(g_EGLDisplay, s_configAttribs, &g_EGLConfig, 1, &numConfigs));
+  EGL_CHECK(eglChooseConfig(g_EGLDisplay, configAttribs, &g_EGLConfig, 1, &numConfigs));
 
-  g_EGLContext = EGL_CHECK(eglCreateContext(g_EGLDisplay, g_EGLConfig, NULL, NULL));
+  g_EGLContext = EGL_CHECK(eglCreateContext(g_EGLDisplay, g_EGLConfig, EGL_NO_CONTEXT, contextAttribs));
 
   g_EGLWindowSurface = EGL_CHECK(eglCreateWindowSurface(g_EGLDisplay, g_EGLConfig, native_win, NULL));
 
