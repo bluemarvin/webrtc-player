@@ -1,6 +1,9 @@
-# These should be defined in .geckopaths
-#GECKO_ROOT = /Volumes/fennec/gecko-desktop
-#GECKO_OBJ = $(GECKO_ROOT)/obj-x86_64-apple-darwin12.5.0
+# These should be defined in .config
+#GECKO_ROOT = /some/path/gecko-dev
+#GECKO_OBJ = $(GECKO_ROOT)/obj-xxx-xxxxx-xxxx
+#ROKU_NDK = /some/path/roku
+#ROKU_DEV_TARGET = Roku device IP address
+#ROKU_USERPASS = username:passwd for Roku device
 
 include .config
 PLATFORM=Roku
@@ -31,10 +34,12 @@ $(GECKO_OBJ)/media/libyuv/libyuv_libyuv/libyuv.a.desc
 
 LIB_ROLLUP = $(BUILD_DIR)/librollup.a
 
+OBJ_FILES = $(BUILD_DIR)/main.o
+
 all: webrtcplayer
 
-webrtcplayer: $(BUILD_DIR)/main.o $(LIB_ROLLUP)
-	$(CXX) $(BUILD_DIR)/main.o $(LIB_ROLLUP) $(LFLAGS) -o $@
+webrtcplayer: $(OBJ_FILES) $(LIB_ROLLUP)
+	$(CXX) $(OBJ_FILES) $(LIB_ROLLUP) $(LFLAGS) -o $@
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
@@ -43,6 +48,8 @@ $(BUILD_DIR)/%.o: %.cpp
 $(LIB_ROLLUP): $(LIBS)
 	@mkdir -p $(BUILD_DIR)
 	$(AR) cr $@ `python ./tools/expand.py $(LIBS)`
+
+-include $(OBJ_FILES:.o=.d)
 
 clean:
 	rm -f $(LIB_ROLLUP) $(BUILD_DIR)/main.o
