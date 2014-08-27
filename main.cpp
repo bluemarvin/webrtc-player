@@ -1,350 +1,323 @@
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
+#include <queue>
+#include <string>
+#include <sstream>
+
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>        // For mode constants
+#include <unistd.h>
 
-EGLNativeWindowType native_win = 0;
-static EGLDisplay   g_EGLDisplay;
-static EGLConfig    g_EGLConfig;
-static EGLContext   g_EGLContext;
-static EGLSurface   g_EGLWindowSurface;
+#include "mozilla/RefPtr.h"
+#include "FakeMediaStreams.h"
 
-#define RLOG(format, ...) fprintf(stderr, format, ##__VA_ARGS__);
+#include "MediaExternal.h"
+#include "MediaMutex.h"
+#include "MediaRefCount.h"
+#include "MediaRunnable.h"
+#include "MediaSegmentExternal.h"
+#include "MediaThread.h"
+#include "MediaTimer.h"
 
-#define EGL_CHECK(x) x; egl_check(__FILE__, __LINE__)
+#include "PeerConnectionCtx.h"
+#include "PeerConnectionImpl.h"
 
-static void
-egl_check(const char* file, int line)
-{
-  EGLint error = eglGetError();
-  if (error != EGL_SUCCESS) {
-    RLOG("Error %s(%d):", file, line);
-    switch (error) {
-      case EGL_SUCCESS:
-        RLOG("EGL_SUCCESS\n");
-      break;
-      case EGL_NOT_INITIALIZED:
-        RLOG("EGL_NOT_INITIALIZED\n");
-      break;
-      case EGL_BAD_ACCESS:
-        RLOG("EGL_BAD_ACCESS\n");
-      break;
-      case EGL_BAD_ALLOC:
-        RLOG("EGL_BAD_ALLOC\n");
-      break;
-      case EGL_BAD_ATTRIBUTE:
-        RLOG("EGL_BAD_ATTRIBUTE\n");
-      break;
-      case EGL_BAD_CONFIG:
-        RLOG("EGL_BAD_CONFIG\n");
-      break;
-      case EGL_BAD_CONTEXT:
-        RLOG("EGL_BAD_CONTEXT\n");
-      break;
-      case EGL_BAD_CURRENT_SURFACE:
-        RLOG("EGL_BAD_CURRENT_SURFACE\n");
-      break;
-      case EGL_BAD_DISPLAY:
-        RLOG("EGL_BAD_DISPLAY\n");
-      break;
-      case EGL_BAD_MATCH:
-        RLOG("EGL_BAD_MATCH\n");
-      break;
-      case EGL_BAD_NATIVE_PIXMAP:
-        RLOG("EGL_BAD_NATIVE_PIXMAP\n");
-      break;
-      case EGL_BAD_NATIVE_WINDOW:
-        RLOG("EGL_BAD_NATIVE_WINDOW\n");
-      break;
-      case EGL_BAD_PARAMETER:
-        RLOG("EGL_BAD_PARAMETER\n");
-      break;
-      case EGL_BAD_SURFACE:
-        RLOG("EGL_BAD_SURFACE\n");
-      break;
-      case EGL_CONTEXT_LOST:
-        RLOG("EGL_CONTEXT_LOST\n");
-      break;
-      default:
-        RLOG("UNKNOWN: %d\n", error);
+#include "nss.h"
+#include "ssl.h"
+
+#include "prthread.h"
+#include "prerror.h"
+#include "prio.h"
+
+#include "render.h"
+
+#define LOG(format, ...) fprintf(stderr, format, ##__VA_ARGS__);
+
+namespace {
+
+class PCObserver;
+typedef media::MutexAutoLock MutexAutoLock;
+
+struct State {
+  mozilla::RefPtr<nsIDOMMediaStream> mStream;
+  mozilla::RefPtr<sipcc::PeerConnectionImpl> mPeerConnection;
+  mozilla::RefPtr<PCObserver> mPeerConnectionObserver;
+  PRFileDesc* mSock;
+  State() : mSock(nullptr) {}
+  MEDIA_REF_COUNT_INLINE
+};
+
+static const int32_t PCOFFER = 0;
+static const int32_t PCANSWER = 1;
+
+class VideoSink : public Fake_VideoSink {
+public:
+  VideoSink(const mozilla::RefPtr<State>& aState) : mState(aState) {}
+  virtual ~VideoSink() {}
+
+  virtual void SegmentReady(media::MediaSegment* aSegment)
+  {
+    media::VideoSegment* segment = reinterpret_cast<media::VideoSegment*>(aSegment);
+    if (segment && mState) {
+      const media::VideoFrame *frame = segment->GetLastFrame();
+      unsigned int size;
+      const unsigned char *image = frame->GetImage(&size);
+      if (size > 0) {
+        int width = 0, height = 0;
+        frame->GetWidthAndHeight(&width, &height);
+        render::Draw(image, size, width, height);
+      }
     }
   }
+protected:
+  mozilla::RefPtr<State> mState;
+};
+
+class PCObserver : public PeerConnectionObserverExternal
+{
+MEDIA_REF_COUNT_INLINE
+public:
+  PCObserver(const mozilla::RefPtr<State>& aState) : mState(aState) {}
+
+  // PeerConnectionObserverExternal
+  NS_IMETHODIMP OnCreateOfferSuccess(const char* offer, ER&) { return NS_OK; }
+  NS_IMETHODIMP OnCreateOfferError(uint32_t code, const char *msg, ER&) { return NS_OK; }
+  NS_IMETHODIMP OnCreateAnswerSuccess(const char* answer, ER&);
+  NS_IMETHODIMP OnCreateAnswerError(uint32_t code, const char *msg, ER&);
+  NS_IMETHODIMP OnSetLocalDescriptionSuccess(ER&) { return NS_OK; }
+  NS_IMETHODIMP OnSetRemoteDescriptionSuccess(ER&) { return NS_OK; }
+  NS_IMETHODIMP OnSetLocalDescriptionError(uint32_t code, const char *msg, ER&) { return NS_OK; }
+  NS_IMETHODIMP OnSetRemoteDescriptionError(uint32_t code, const char *msg, ER&) { return NS_OK; }
+  NS_IMETHODIMP NotifyConnection(ER&) { return NS_OK; }
+  NS_IMETHODIMP NotifyClosedConnection(ER&) { return NS_OK; }
+  NS_IMETHODIMP NotifyDataChannel(nsIDOMDataChannel *channel, ER&) { return NS_OK; }
+  NS_IMETHODIMP OnStateChange(mozilla::dom::PCObserverStateType state_type, ER&, void*);
+  NS_IMETHODIMP OnAddStream(nsIDOMMediaStream *stream, ER&);
+  NS_IMETHODIMP OnRemoveStream(ER&);
+  NS_IMETHODIMP OnAddTrack(ER&) { return NS_OK; }
+  NS_IMETHODIMP OnRemoveTrack(ER&) { return NS_OK; }
+  NS_IMETHODIMP OnAddIceCandidateSuccess(ER&) { return NS_OK; }
+  NS_IMETHODIMP OnAddIceCandidateError(uint32_t code, const char *msg, ER&) { return NS_OK; }
+  NS_IMETHODIMP OnIceCandidate(uint16_t level, const char *mid, const char *cand, ER&) { return NS_OK; }
+
+protected:
+  mozilla::RefPtr<State> mState;
+};
+
+class PullTimer : public media::TimerCallback
+{
+MEDIA_REF_COUNT_INLINE
+public:
+  PullTimer(const mozilla::RefPtr<State>& aState) : mState(aState) {}
+  // media::TimerCallback
+  NS_IMETHOD Notify(media::Timer *timer);
+protected:
+  mozilla::RefPtr<State> mState;
+};
+
+NS_IMETHODIMP
+PCObserver::OnCreateAnswerSuccess(const char* answer, ER&)
+{
+  if (answer && mState.get() && mState->mSock && mState->mPeerConnection.get()) {
+    mState->mPeerConnection->SetLocalDescription(PCANSWER, answer);
+fprintf(stderr, "Answer ->\n%s\n", answer);
+    PR_Send(mState->mSock, answer, strlen(answer), 0, PR_INTERVAL_NO_TIMEOUT);
+  }
+
+  return NS_OK;
 }
 
-#define GL_CHECK(x) x; gl_check(__FILE__, __LINE__)
-
-static void
-gl_check(const char* file, int line)
+NS_IMETHODIMP
+PCObserver::OnCreateAnswerError(uint32_t code, const char *message, ER&)
 {
-  GLint error = glGetError();
-  if (error != GL_NO_ERROR) {
-    RLOG("GL Error %s(%d): ", file, line);
-    switch(error) {
-      case GL_INVALID_ENUM:
-        RLOG("GL_INVALID_ENUM\n");
-      break;
-      case GL_INVALID_VALUE:
-        RLOG("GL_INVALID_VALUE\n");
-      break;
-      case GL_INVALID_OPERATION:
-        RLOG("GL_INVALID_OPERATION\n");
-      break;
-      case GL_INVALID_FRAMEBUFFER_OPERATION:
-        RLOG("GL_INVALID_FRAMEBUFFER_OPERATION\n");
-      break;
-      case GL_OUT_OF_MEMORY:
-        RLOG("GL_OUT_OF_MEMORY\n");
-      break;
-      default:
-        RLOG("UNKNOWN ERROR: %d\n", error);
-    }
-  }
+  return NS_OK;
 }
 
-const GLchar* vertexSource =
-    "attribute vec2 position;\n"
-    "attribute vec2 texcoord;\n"
-    "varying vec2 varTexcoord;\n"
-    "void main() {\n"
-    "   gl_Position = vec4(position, 0.0, 1.0);\n"
-    "   varTexcoord = texcoord;\n"
-    "}\n";
-
-const GLchar* fragmentSourceGray =
-    "varying vec2 varTexcoord;"
-    "uniform sampler2D texY;"
-    "uniform sampler2D texU;"
-    "uniform sampler2D texV;"
-    "void main() {"
-    "   vec4 c = texture2D(texY, varTexcoord);"
-    "   gl_FragColor = vec4(c.r, c.r, c.r, 1.0);"
-    "}";
-
-const GLchar *fragmentSource =
-  "varying vec2 varTexcoord;\n"
-  "uniform sampler2D texY;\n"
-  "uniform sampler2D texU;\n"
-  "uniform sampler2D texV;\n"
-  "void main(void) {\n"
-  "  float r,g,b,y,u,v;\n"
-  "  y=texture2D(texY, varTexcoord).r;\n"
-  "  u=texture2D(texU, varTexcoord).r;\n"
-  "  v=texture2D(texV, varTexcoord).r;\n"
-
-  "  y=1.1643*(y-0.0625);\n"
-  "  u=u-0.5;\n"
-  "  v=v-0.5;\n"
-
-  "  r=y+1.5958*v;\n"
-  "  g=y-0.39173*u-0.81290*v;\n"
-  "  b=y+2.017*u;\n"
-
-  "  gl_FragColor=vec4(r,g,b,1.0);\n"
-  "}\n";
-
-
-int main(int argc, char *argv[])
+NS_IMETHODIMP
+PCObserver::OnStateChange(mozilla::dom::PCObserverStateType state_type, ER&, void*)
 {
-  static const EGLint configAttribs[] = {
-    EGL_RENDERABLE_TYPE,     EGL_OPENGL_ES2_BIT,
-    EGL_BUFFER_SIZE,        32,
-    EGL_RED_SIZE,       8,
-    EGL_GREEN_SIZE,     8,
-    EGL_BLUE_SIZE,      8,
-    EGL_ALPHA_SIZE,     8,
-    EGL_DEPTH_SIZE,     0,
-    EGL_STENCIL_SIZE,   0,
-    EGL_SAMPLE_BUFFERS, 0,
-    EGL_NONE
-  };
-
-  static const EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
-
-
-  EGLint numConfigs;
-  EGLint majorVersion;
-  EGLint minorVersion;
-
-  g_EGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-
-  EGL_CHECK(eglInitialize(g_EGLDisplay, &majorVersion, &minorVersion));
-
-  RLOG("EGL v%d.%d\n", (int)majorVersion, (int)minorVersion);
-
-  EGL_CHECK(eglGetConfigs(g_EGLDisplay, NULL, 0, &numConfigs));
-  EGL_CHECK(eglChooseConfig(g_EGLDisplay, configAttribs, &g_EGLConfig, 1, &numConfigs));
-
-  g_EGLContext = EGL_CHECK(eglCreateContext(g_EGLDisplay, g_EGLConfig, EGL_NO_CONTEXT, contextAttribs));
-
-  g_EGLWindowSurface = EGL_CHECK(eglCreateWindowSurface(g_EGLDisplay, g_EGLConfig, native_win, NULL));
-
-  int width;
-  int height;
-  EGL_CHECK(eglQuerySurface(g_EGLDisplay, g_EGLWindowSurface, EGL_WIDTH, &width));
-  EGL_CHECK(eglQuerySurface(g_EGLDisplay, g_EGLWindowSurface, EGL_HEIGHT, &height));
-
-  RLOG("Window: %d x %d\n", width, height);
-
-  EGL_CHECK(eglMakeCurrent(g_EGLDisplay, g_EGLWindowSurface, g_EGLWindowSurface, g_EGLContext));
-
-  GLboolean hasCompiler = GL_FALSE;
-  //GL_CHECK(glGetBooleanv(GL_SHADER_COMPILER, &hasCompiler));
-  RLOG("Has compiler: %s\n", (hasCompiler == GL_TRUE ? "True" : "False"));
-
-  GL_CHECK(glViewport(0, 0, width, height));
-
-  GLuint vertexShader = GL_CHECK(glCreateShader(GL_VERTEX_SHADER));
-  GL_CHECK(glShaderSource(vertexShader, 1, &vertexSource, NULL));
-  GL_CHECK(glCompileShader(vertexShader));
-  GLint status;
-  GL_CHECK(glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status));
-  if (status != GL_TRUE) {
-    GLint logLength = 0;
-    GL_CHECK(glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &logLength));
-    if (logLength > 0) {
-      char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetShaderInfoLog(vertexShader, logLength, NULL, buffer));
-      RLOG("Vertex compiler error[%d]: %s\n", (int)logLength, buffer);
-      delete []buffer;
-    }
-    else {
-      RLOG("Vertex compiler error: No log available.\n");
-    }
+  if (!mState || mState->mPeerConnection.get()) {
+    return NS_OK;
   }
 
-  GLuint fragmentShader = GL_CHECK(glCreateShader(GL_FRAGMENT_SHADER));
-  GL_CHECK(glShaderSource(fragmentShader, 1, &fragmentSource, NULL));
-  GL_CHECK(glCompileShader(fragmentShader));
-  GL_CHECK(glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status));
-  if (status != GL_TRUE) {
-    GLint logLength = 0;
-    GL_CHECK(glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &logLength));
-    if (logLength > 0) {
-      char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetShaderInfoLog(fragmentShader, logLength, NULL, buffer));
-      RLOG("Fragment compiler error[%d]: %s\n", (int)logLength, buffer);
-      delete []buffer;
-    }
-    else {
-      RLOG("Fragment compiler error: No log available.\n");
+  nsresult rv;
+  mozilla::dom::PCImplIceConnectionState gotice;
+  mozilla::dom::PCImplIceGatheringState goticegathering;
+  mozilla::dom::PCImplSipccState gotsipcc;
+  mozilla::dom::PCImplSignalingState gotsignaling;
+
+  switch (state_type) {
+  case mozilla::dom::PCObserverStateType::IceConnectionState:
+    rv = mState->mPeerConnection->IceConnectionState(&gotice);
+    MEDIA_ENSURE_SUCCESS(rv, rv);
+    break;
+  case mozilla::dom::PCObserverStateType::IceGatheringState:
+    rv = mState->mPeerConnection->IceGatheringState(&goticegathering);
+    MEDIA_ENSURE_SUCCESS(rv, rv);
+    break;
+  case mozilla::dom::PCObserverStateType::SdpState:
+    // MEDIA_ENSURE_SUCCESS(rv, rv);
+    break;
+  case mozilla::dom::PCObserverStateType::SipccState:
+    rv = mState->mPeerConnection->SipccState(&gotsipcc);
+    MEDIA_ENSURE_SUCCESS(rv, rv);
+    break;
+  case mozilla::dom::PCObserverStateType::SignalingState:
+    rv = mState->mPeerConnection->SignalingState(&gotsignaling);
+    MEDIA_ENSURE_SUCCESS(rv, rv);
+    break;
+  default:
+    // Unknown State
+    MOZ_CRASH("Unknown state change type.");
+    break;
+  }
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
+PCObserver::OnAddStream(nsIDOMMediaStream *stream, ER&)
+{
+  mState->mStream = stream;
+
+  Fake_DOMMediaStream* fake = reinterpret_cast<Fake_DOMMediaStream*>(mState->mStream.get());
+  if (fake) {
+    Fake_MediaStream* ms = reinterpret_cast<Fake_MediaStream*>(fake->GetStream());
+    Fake_SourceMediaStream* sms = ms->AsSourceStream();
+    if (sms) {
+      mozilla::RefPtr<Fake_VideoSink> sink = new VideoSink(mState);
+      sms->AddVideoSink(sink);
     }
   }
+  return NS_OK;
+}
 
-  GLuint shaderProgram = GL_CHECK(glCreateProgram());
-  GL_CHECK(glAttachShader(shaderProgram, vertexShader));
-  GL_CHECK(glAttachShader(shaderProgram, fragmentShader));
-  GL_CHECK(glLinkProgram(shaderProgram));
-  GL_CHECK(glGetProgramiv(shaderProgram, GL_LINK_STATUS, &status));
-  if (status != GL_TRUE) {
-    GLint logLength = 0;
-    GL_CHECK(glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength));
-    if (logLength > 0) {
-      char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetProgramInfoLog(shaderProgram, logLength, NULL, buffer));
-      RLOG("Program error[%d]: %s\n", (int)logLength, buffer);
-      delete []buffer;
-    }
-    else {
-      RLOG("Program link error: No log available.\n");
+NS_IMETHODIMP
+PCObserver::OnRemoveStream(ER&)
+{
+  // Not being called?
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+PullTimer::Notify(media::Timer *timer)
+{
+  if (mState.get()) {
+    Fake_DOMMediaStream* fake = reinterpret_cast<Fake_DOMMediaStream*>(mState->mStream.get());
+    if (fake) {
+      Fake_MediaStream* ms = reinterpret_cast<Fake_MediaStream*>(fake->GetStream());
+      static uint64_t value = 0;
+      if (ms) { ms->NotifyPull(nullptr, value++); }
     }
   }
+  return NS_OK;
+}
 
-  GL_CHECK(glUseProgram(shaderProgram));
+} // namespace
 
-  GLfloat vertices[] = {
-    -1.0f, -1.0f,
-    1.0f, -1.0f,
-    1.0f, 1.0f,
-    -1.0f, 1.0f
-  };
+bool
+CheckPRError(PRStatus result, const char* file, const int line)
+{
+  if (result != PR_SUCCESS) {
+    PRInt32 len = PR_GetErrorTextLength() + 1;
+    if (len > 1) {
+      char* buf = new char[len];
+      memset(buf, 0, len);
+      PR_GetErrorText(buf);
+      fprintf(stderr, "Error %s(%d)[%d]: %s\n", file, line, len, buf);
+      delete []buf;
+    }
+    else {
+      fprintf(stderr, "Error %s(%d)[%d]number: %d\n", file, line, len,(int)PR_GetError());
+    }
+    return false;
+  }
+  return true;
+}
 
-  GLfloat texcoord[] = {
-    0.0f, 1.0f,
-    1.0f, 1.0f,
-    1.0f, 0.0f,
-    0.0f, 0.0f
-  };
+#define CHECK_PR(x) CheckPRError(x, __FILE__, __LINE__)
 
-  const int YSize = 307200;
-  const int UVSize = 76800;
-  const int Width = 640;
-  const int Height = 480;
+int
+main(int argc, char* argv[])
+{
+  media::Initialize();
+  NSS_NoDB_Init(nullptr);
+  NSS_SetDomesticPolicy();
+  mozilla::RefPtr<State> state = new State;
 
-  unsigned char chanY[YSize];
-  unsigned char chanU[UVSize];
-  unsigned char chanV[UVSize];
+  PRNetAddr addr;
+  memset(&addr, 0, sizeof(addr));
+  PR_SetNetAddr(PR_IpAddrAny, PR_AF_INET, 8088, &addr);
+  PRFileDesc* sock = PR_OpenTCPSocket(PR_AF_INET);
 
-  FILE* file = fopen("pkg:/images/frame.i420", "r");
-  if (file) {
-    fread(chanY, YSize, 1, file);
-    fread(chanU, UVSize, 1, file);
-    fread(chanV, UVSize, 1, file);
-    fclose(file);
-    file = 0;
+  if (!sock) {
+    fprintf(stderr, "Failed to create socket\n.");
+  }
+
+  PRSocketOptionData opt;
+
+  opt.option = PR_SockOpt_Reuseaddr;
+  opt.value.reuse_addr = true;
+  PR_SetSocketOption(sock, &opt);
+
+  CHECK_PR(PR_Bind(sock, &addr));
+
+  if (CHECK_PR(PR_Listen(sock, 5))) {
+    state->mSock = PR_Accept(sock, &addr, PR_INTERVAL_NO_TIMEOUT);
+    PR_Shutdown(sock, PR_SHUTDOWN_BOTH);
+    PR_Close(sock);
+    sock = nullptr;
   }
   else {
-    RLOG("Failed to open file\n");
-    exit(1);
+    exit(-1);
   }
 
-  GLuint textureY;
-  GL_CHECK(glGenTextures(1, &textureY));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureY));
-  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, Width, Height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanY));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+  const int len = 2048;
+  char offer[len];
+  memset(offer, 0, len);
 
-  GLuint textureU;
-  GL_CHECK(glGenTextures(1, &textureU));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureU));
-  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, Width / 2, Height / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-  GLuint textureV;
-  GL_CHECK(glGenTextures(1, &textureV));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureV));
-  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, Width / 2, Height / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanV));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-  GLint posAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "position"));
-  GLint texAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "texcoord"));
-  GL_CHECK(glEnableVertexAttribArray(posAttrib));
-  GL_CHECK(glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, vertices));
-  GL_CHECK(glEnableVertexAttribArray(texAttrib));
-  GL_CHECK(glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, texcoord));
-  GL_CHECK(glActiveTexture(GL_TEXTURE0));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureY));
-  GL_CHECK(glActiveTexture(GL_TEXTURE1));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureU));
-  GL_CHECK(glActiveTexture(GL_TEXTURE2));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureV));
-  GLint texY = GL_CHECK(glGetUniformLocation(shaderProgram, "texY"));
-  GL_CHECK(glUniform1i(texY, /*GL_TEXTURE*/0));
-  GLint texU = GL_CHECK(glGetUniformLocation(shaderProgram, "texU"));
-  GL_CHECK(glUniform1i(texU, /*GL_TEXTURE*/1));
-  GLint texV = GL_CHECK(glGetUniformLocation(shaderProgram, "texV"));
-  GL_CHECK(glUniform1i(texV, /*GL_TEXTURE*/2));
-
-  bool done = false;
-
-  while (!done) {
-    GL_CHECK(glClearColor ( 0.0, 0.0, 0.0, 1.0 ));
-    GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
-    GL_CHECK(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
-    GL_CHECK(eglSwapBuffers(g_EGLDisplay, g_EGLWindowSurface));
+  if (state->mSock) {
+    PRInt32 read = PR_Recv(state->mSock, offer, len, 0, PR_INTERVAL_NO_TIMEOUT);
+    if (read > 0) {
+      fprintf(stderr, "Received ->\n%s\n", offer);
+    }
+    else {
+      fprintf(stderr, "Failed to read data\n");
+      exit(-1);
+    }
   }
+  else {
+    LOG("Failed to get socket\n");
+    exit(-1);
+  }
+  sipcc::IceConfiguration cfg;
 
-  GL_CHECK(glDeleteProgram(shaderProgram));
-  GL_CHECK(glDeleteShader(fragmentShader));
-  GL_CHECK(glDeleteShader(vertexShader));
+  state->mPeerConnection = sipcc::PeerConnectionImpl::CreatePeerConnection();
+  state->mPeerConnectionObserver = new PCObserver(state);
+  state->mPeerConnection->Initialize(*(state->mPeerConnectionObserver), nullptr, cfg, NS_GetCurrentThread());
+
+  mozilla::RefPtr<media::Timer> timer = media::CreateTimer();;
+  mozilla::RefPtr<PullTimer> pull = new PullTimer(state);
+
+  timer->InitWithCallback(
+    pull,
+    PR_MillisecondsToInterval(16),
+    media::Timer::TYPE_REPEATING_PRECISE);
+
+  state->mPeerConnection->SetRemoteDescription(PCOFFER, offer);
+  state->mPeerConnection->CreateAnswer();
+
+  render::Initialize();
+  while (render::KeepRunning()) { NS_ProcessNextEvent(nullptr, true); }
+
+  if (state->mStream) { state->mStream->GetStream()->AsSourceStream()->StopStream(); }
+  state->mPeerConnection->CloseStreams();
+  state->mPeerConnection->Close();
+  state->mPeerConnection = nullptr;
+
+  render::Shutdown();
+  media::Shutdown();
 
   return 0;
 }

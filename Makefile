@@ -34,7 +34,7 @@ $(GECKO_OBJ)/media/libyuv/libyuv_libyuv/libyuv.a.desc
 
 LIB_ROLLUP = $(BUILD_DIR)/librollup.a
 
-OBJ_FILES = $(BUILD_DIR)/main.o
+OBJ_FILES = $(BUILD_DIR)/main.o $(BUILD_DIR)/renderGL.o
 
 all: webrtcplayer
 

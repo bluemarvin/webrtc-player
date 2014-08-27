@@ -14,6 +14,9 @@ CFLAGS = \
 -fvisibility=hidden \
 -Wall \
 -DMOZ_GLUE_IN_PROGRAM \
+-DMOZILLA_MEDIA_STANDALONE \
+-DUSE_FAKE_MEDIA_STREAMS \
+-DUSE_FAKE_PCOBSERVER \
 -DAB_CD=en-US \
 -DNO_NSPR_10_SUPPORT \
 -fPIC \
@@ -58,13 +61,13 @@ CFLAGS = \
 LFLAGS = \
 -fvisibility-inlines-hidden \
 -Wl,--allow-shlib-undefined \
+-L$(GECKO_OBJ)/dist/lib \
 -L$(ROKU_PLATFORM)/lib \
 -L$(ROKU_PLATFORM)/usr/lib \
 -L$(ROKU_PLATFORM)/toolchain/arm-brcm-linux-gnueabi/sys-root/usr/lib \
 -Wl,-z,noexecstack \
 -Wl,-z,text \
 -Wl,--build-id \
--L$(GECKO_OBJ)/dist/lib \
 -lssl \
 -lcryptohi \
 -lplc4 \
