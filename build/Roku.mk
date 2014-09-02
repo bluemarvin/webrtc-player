@@ -55,7 +55,7 @@ CFLAGS = \
 -DTRIMMED \
 -c \
 -g \
--O \
+-O0 \
 -fomit-frame-pointer
 
 LFLAGS = \
@@ -68,38 +68,41 @@ LFLAGS = \
 -Wl,-z,noexecstack \
 -Wl,-z,text \
 -Wl,--build-id \
--lssl \
+-Wl,-Bstatic -lssl \
 -lcryptohi \
--lplc4 \
--lnspr4 \
--lcertdb \
--lcerthi \
--lpkixpki \
--lpkixtop \
--lpkixchecker \
--lpkixstore \
--lpkixcrlsel \
--lpkixpki \
--lpkixresults \
--lpkixutil \
--lpkixparams \
--lpkixcertsel \
--lpkixsystem \
--lpkixchecker \
--lpkixmodule \
--lnsspki \
--lnssdev \
--lnssb \
--lnss \
--lpk11wrap \
--lcerthi \
--lnssutil \
--lplds4 \
+-Wl,-Bstatic -lplc4 \
+-Wl,-Bdynamic -lnspr4 \
+-Wl,-Bstatic -lcertdb \
+-Wl,-Bstatic -lcerthi \
+-Wl,-Bstatic -lpkixpki \
+-Wl,-Bstatic -lpkixtop \
+-Wl,-Bstatic -lpkixchecker \
+-Wl,-Bstatic -lpkixstore \
+-Wl,-Bstatic -lpkixcrlsel \
+-Wl,-Bstatic -lpkixpki \
+-Wl,-Bstatic -lpkixresults \
+-Wl,-Bstatic -lpkixutil \
+-Wl,-Bstatic -lpkixparams \
+-Wl,-Bstatic -lpkixcertsel \
+-Wl,-Bstatic -lpkixsystem \
+-Wl,-Bstatic -lpkixchecker \
+-Wl,-Bstatic -lpkixmodule \
+-Wl,-Bstatic -lnsspki \
+-Wl,-Bstatic -lnssdev \
+-Wl,-Bstatic -lnssb \
+-Wl,-Bstatic -lnss \
+-Wl,-Bstatic -lpk11wrap \
+-Wl,-Bstatic -lcerthi \
+-Wl,-Bdynamic -lnssutil3 \
+-Wl,-Bdynamic -lplds4 \
+-Wl,-Bdynamic -lplc4 \
 -fvisibility-inlines-hidden \
 -Wl,--gc-sections \
 -Wl,--copy-dt-needed-entries \
 -Wl,-rpath,\$$ORIGIN/./lib \
+-Wl,--disable-new-dtags \
 -Wl,-rpath-link,$(ROKU_PLATFORM)/usr/lib \
+-Wl,-rpath-link,\$$ORIGIN/./lib \
 -Wl,-Bdynamic -lpthread \
 -Wl,-Bdynamic -lc\
 -Wl,-Bdynamic -lrt \

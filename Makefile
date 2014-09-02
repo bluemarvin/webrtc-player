@@ -12,6 +12,7 @@ PKG_IMAGE_DIR=$(PKG_DIR)/images
 PKG_LIB_DIR=$(PKG_DIR)/lib
 PKG_SOURCE_DIR=$(PKG_DIR)/source
 PKG_FILE=webrtcplayer_cramfs.bin
+GECKO_DIST=$(GECKO_OBJ)/dist/lib
 
 include build/common.mk
 include build/$(PLATFORM).mk
@@ -60,7 +61,23 @@ clobber: clean
 	rm -rf $(PKG_DIR)
 	rm -f $(PKG_FILE)
 
-package: webrtcplayer
+PKG_LIBS = \
+$(GECKO_DIST)/libfreebl3.so \
+$(GECKO_DIST)/libmozalloc.so \
+$(GECKO_DIST)/libmozsqlite3.so \
+$(GECKO_DIST)/libsmime3.so \
+$(GECKO_DIST)/libsoftokn3.so \
+$(GECKO_DIST)/libnssutil3.so \
+$(GECKO_DIST)/libplc4.so \
+$(GECKO_DIST)/libplds4.so \
+$(GECKO_DIST)/libnspr4.so
+
+# $(GECKO_DIST)/libnss3.so \
+# $(GECKO_DIST)/libnssckbi.so \
+# $(GECKO_DIST)/libnssdbm3.so \
+# $(GECKO_DIST)/libssl3.so
+
+prepackage: webrtcplayer
 	echo Creating package...
 	@rm -f $(PKG_NAME)
 	@rm -rf $(PKG_DIR)
@@ -69,13 +86,20 @@ package: webrtcplayer
 	@mkdir -p $(PKG_SOURCE_DIR)
 	@cp manifest $(PKG_DIR)
 	@cp webrtcplayer $(PKG_DIR)
+	cp -L $(PKG_LIBS) $(PKG_LIB_DIR)
+
+package: prepackage
 	@cp source/main.brs $(PKG_SOURCE_DIR)
-	@cp -L $(GECKO_OBJ)/dist/lib/libmozalloc.so $(PKG_LIB_DIR)
-	@cp -L $(GECKO_OBJ)/dist/lib/libplc4.so $(PKG_LIB_DIR)
-	@cp -L $(GECKO_OBJ)/dist/lib/libnspr4.so $(PKG_LIB_DIR)
-	@cp -L $(GECKO_OBJ)/dist/lib/libplds4.so $(PKG_LIB_DIR)
-	@cp frame.i420 $(PKG_IMAGE_DIR)
+	$(ROKU_NDK)/bin/mkcramfs_roku $(PKG_DIR) $(PKG_FILE)
+
+dbpackage: prepackage
+	cp $(ROKU_NDK)/platforms/Roku2/toolchain/arm-brcm-linux-gnueabi/debug-root/usr/bin/gdbserver $(PKG_DIR)
+	@cp source/dbmain.brs $(PKG_SOURCE_DIR)/main.brs
+	tools/paxctl.sh $(PKG_DIR) $(ROKU_NDK) webrtcplayer
 	$(ROKU_NDK)/bin/mkcramfs_roku $(PKG_DIR) $(PKG_FILE)
 
 install: package
+	curl -v --user $(ROKU_USERPASS) --anyauth -S -F "mysubmit=Install" -F "archive=@$(PKG_FILE)" -F "passwd=" http://$(ROKU_DEV_TARGET)/plugin_install
+
+dbinstall: dbpackage
 	curl -v --user $(ROKU_USERPASS) --anyauth -S -F "mysubmit=Install" -F "archive=@$(PKG_FILE)" -F "passwd=" http://$(ROKU_DEV_TARGET)/plugin_install
