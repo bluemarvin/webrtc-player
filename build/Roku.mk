@@ -54,8 +54,7 @@ CFLAGS = \
 -DNDEBUG \
 -DTRIMMED \
 -c \
--g \
--O0 \
+-O3 \
 -fomit-frame-pointer
 
 LFLAGS = \
