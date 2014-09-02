@@ -3,26 +3,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-EGLNativeWindowType native_win = 0;
-static EGLDisplay   g_EGLDisplay;
-static EGLConfig    g_EGLConfig;
-static EGLContext   g_EGLContext;
-static EGLSurface   g_EGLWindowSurface;
-static GLuint textureY;
-static GLuint textureU;
-static GLuint textureV;
-static GLuint vertexShader;
-static GLuint fragmentShader;
-static GLuint shaderProgram;
+static EGLNativeWindowType sNativeWin = 0;
+static EGLDisplay sEGLDisplay;
+static EGLConfig sEGLConfig;
+static EGLContext sEGLContext;
+static EGLSurface sEGLWindowSurface;
+static GLuint sTextureY;
+static GLuint sTextureU;
+static GLuint sTextureV;
+static GLuint sVertexShader;
+static GLuint sFragmentShader;
+static GLuint sShaderProgram;
+static int sWidth;
+static int sHeight;
 
-static GLfloat vertices[] = {
+static GLfloat sVertices[] = {
   -1.0f, -1.0f,
   1.0f, -1.0f,
   1.0f, 1.0f,
   -1.0f, 1.0f
 };
 
-static GLfloat texcoord[] = {
+static GLfloat sTexcoord[] = {
   0.0f, 1.0f,
   1.0f, 1.0f,
   1.0f, 0.0f,
@@ -187,45 +189,43 @@ Initialize()
   EGLint majorVersion;
   EGLint minorVersion;
 
-  g_EGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  sEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
-  EGL_CHECK(eglInitialize(g_EGLDisplay, &majorVersion, &minorVersion));
+  EGL_CHECK(eglInitialize(sEGLDisplay, &majorVersion, &minorVersion));
 
   RLOG("EGL v%d.%d\n", (int)majorVersion, (int)minorVersion);
 
-  EGL_CHECK(eglGetConfigs(g_EGLDisplay, NULL, 0, &numConfigs));
-  EGL_CHECK(eglChooseConfig(g_EGLDisplay, configAttribs, &g_EGLConfig, 1, &numConfigs));
+  EGL_CHECK(eglGetConfigs(sEGLDisplay, NULL, 0, &numConfigs));
+  EGL_CHECK(eglChooseConfig(sEGLDisplay, configAttribs, &sEGLConfig, 1, &numConfigs));
 
-  g_EGLContext = EGL_CHECK(eglCreateContext(g_EGLDisplay, g_EGLConfig, EGL_NO_CONTEXT, contextAttribs));
+  sEGLContext = EGL_CHECK(eglCreateContext(sEGLDisplay, sEGLConfig, EGL_NO_CONTEXT, contextAttribs));
 
-  g_EGLWindowSurface = EGL_CHECK(eglCreateWindowSurface(g_EGLDisplay, g_EGLConfig, native_win, NULL));
+  sEGLWindowSurface = EGL_CHECK(eglCreateWindowSurface(sEGLDisplay, sEGLConfig, sNativeWin, NULL));
 
-  int width;
-  int height;
-  EGL_CHECK(eglQuerySurface(g_EGLDisplay, g_EGLWindowSurface, EGL_WIDTH, &width));
-  EGL_CHECK(eglQuerySurface(g_EGLDisplay, g_EGLWindowSurface, EGL_HEIGHT, &height));
+  EGL_CHECK(eglQuerySurface(sEGLDisplay, sEGLWindowSurface, EGL_WIDTH, &sWidth));
+  EGL_CHECK(eglQuerySurface(sEGLDisplay, sEGLWindowSurface, EGL_HEIGHT, &sHeight));
 
-  RLOG("Window: %d x %d\n", width, height);
+  RLOG("Window: %d x %d\n", sWidth, sHeight);
 
-  EGL_CHECK(eglMakeCurrent(g_EGLDisplay, g_EGLWindowSurface, g_EGLWindowSurface, g_EGLContext));
+  EGL_CHECK(eglMakeCurrent(sEGLDisplay, sEGLWindowSurface, sEGLWindowSurface, sEGLContext));
 
   GLboolean hasCompiler = GL_FALSE;
   //GL_CHECK(glGetBooleanv(GL_SHADER_COMPILER, &hasCompiler));
   RLOG("Has compiler: %s\n", (hasCompiler == GL_TRUE ? "True" : "False"));
 
-  GL_CHECK(glViewport(0, 0, width, height));
+  GL_CHECK(glViewport(0, 0, sWidth, sHeight));
 
-  vertexShader = GL_CHECK(glCreateShader(GL_VERTEX_SHADER));
-  GL_CHECK(glShaderSource(vertexShader, 1, &vertexSource, NULL));
-  GL_CHECK(glCompileShader(vertexShader));
+  sVertexShader = GL_CHECK(glCreateShader(GL_VERTEX_SHADER));
+  GL_CHECK(glShaderSource(sVertexShader, 1, &vertexSource, NULL));
+  GL_CHECK(glCompileShader(sVertexShader));
   GLint status;
-  GL_CHECK(glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status));
+  GL_CHECK(glGetShaderiv(sVertexShader, GL_COMPILE_STATUS, &status));
   if (status != GL_TRUE) {
     GLint logLength = 0;
-    GL_CHECK(glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &logLength));
+    GL_CHECK(glGetShaderiv(sVertexShader, GL_INFO_LOG_LENGTH, &logLength));
     if (logLength > 0) {
       char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetShaderInfoLog(vertexShader, logLength, NULL, buffer));
+      GL_CHECK(glGetShaderInfoLog(sVertexShader, logLength, NULL, buffer));
       RLOG("Vertex compiler error[%d]: %s\n", (int)logLength, buffer);
       delete []buffer;
     }
@@ -234,16 +234,16 @@ Initialize()
     }
   }
 
-  fragmentShader = GL_CHECK(glCreateShader(GL_FRAGMENT_SHADER));
-  GL_CHECK(glShaderSource(fragmentShader, 1, &fragmentSource, NULL));
-  GL_CHECK(glCompileShader(fragmentShader));
-  GL_CHECK(glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status));
+  sFragmentShader = GL_CHECK(glCreateShader(GL_FRAGMENT_SHADER));
+  GL_CHECK(glShaderSource(sFragmentShader, 1, &fragmentSource, NULL));
+  GL_CHECK(glCompileShader(sFragmentShader));
+  GL_CHECK(glGetShaderiv(sFragmentShader, GL_COMPILE_STATUS, &status));
   if (status != GL_TRUE) {
     GLint logLength = 0;
-    GL_CHECK(glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &logLength));
+    GL_CHECK(glGetShaderiv(sFragmentShader, GL_INFO_LOG_LENGTH, &logLength));
     if (logLength > 0) {
       char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetShaderInfoLog(fragmentShader, logLength, NULL, buffer));
+      GL_CHECK(glGetShaderInfoLog(sFragmentShader, logLength, NULL, buffer));
       RLOG("Fragment compiler error[%d]: %s\n", (int)logLength, buffer);
       delete []buffer;
     }
@@ -252,17 +252,17 @@ Initialize()
     }
   }
 
-  shaderProgram = GL_CHECK(glCreateProgram());
-  GL_CHECK(glAttachShader(shaderProgram, vertexShader));
-  GL_CHECK(glAttachShader(shaderProgram, fragmentShader));
-  GL_CHECK(glLinkProgram(shaderProgram));
-  GL_CHECK(glGetProgramiv(shaderProgram, GL_LINK_STATUS, &status));
+  sShaderProgram = GL_CHECK(glCreateProgram());
+  GL_CHECK(glAttachShader(sShaderProgram, sVertexShader));
+  GL_CHECK(glAttachShader(sShaderProgram, sFragmentShader));
+  GL_CHECK(glLinkProgram(sShaderProgram));
+  GL_CHECK(glGetProgramiv(sShaderProgram, GL_LINK_STATUS, &status));
   if (status != GL_TRUE) {
     GLint logLength = 0;
-    GL_CHECK(glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength));
+    GL_CHECK(glGetProgramiv(sShaderProgram, GL_INFO_LOG_LENGTH, &logLength));
     if (logLength > 0) {
       char *buffer = new char[logLength + 1];
-      GL_CHECK(glGetProgramInfoLog(shaderProgram, logLength, NULL, buffer));
+      GL_CHECK(glGetProgramInfoLog(sShaderProgram, logLength, NULL, buffer));
       RLOG("Program error[%d]: %s\n", (int)logLength, buffer);
       delete []buffer;
     }
@@ -271,46 +271,46 @@ Initialize()
     }
   }
 
-  GL_CHECK(glUseProgram(shaderProgram));
+  GL_CHECK(glUseProgram(sShaderProgram));
 
-  GL_CHECK(glGenTextures(1, &textureY));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureY));
+  GL_CHECK(glGenTextures(1, &sTextureY));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureY));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-  GL_CHECK(glGenTextures(1, &textureU));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureU));
+  GL_CHECK(glGenTextures(1, &sTextureU));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureU));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-  GL_CHECK(glGenTextures(1, &textureV));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureV));
+  GL_CHECK(glGenTextures(1, &sTextureV));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureV));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-  GLint posAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "position"));
-  GLint texAttrib = GL_CHECK(glGetAttribLocation(shaderProgram, "texcoord"));
+  GLint posAttrib = GL_CHECK(glGetAttribLocation(sShaderProgram, "position"));
+  GLint texAttrib = GL_CHECK(glGetAttribLocation(sShaderProgram, "texcoord"));
   GL_CHECK(glEnableVertexAttribArray(posAttrib));
-  GL_CHECK(glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, vertices));
+  GL_CHECK(glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, sVertices));
   GL_CHECK(glEnableVertexAttribArray(texAttrib));
-  GL_CHECK(glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, texcoord));
+  GL_CHECK(glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, sTexcoord));
   GL_CHECK(glActiveTexture(GL_TEXTURE0));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureY));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureY));
   GL_CHECK(glActiveTexture(GL_TEXTURE1));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureU));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureU));
   GL_CHECK(glActiveTexture(GL_TEXTURE2));
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, textureV));
-  GLint texY = GL_CHECK(glGetUniformLocation(shaderProgram, "texY"));
+  GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureV));
+  GLint texY = GL_CHECK(glGetUniformLocation(sShaderProgram, "texY"));
   GL_CHECK(glUniform1i(texY, 0));
-  GLint texU = GL_CHECK(glGetUniformLocation(shaderProgram, "texU"));
+  GLint texU = GL_CHECK(glGetUniformLocation(sShaderProgram, "texU"));
   GL_CHECK(glUniform1i(texU, 1));
-  GLint texV = GL_CHECK(glGetUniformLocation(shaderProgram, "texV"));
+  GLint texV = GL_CHECK(glGetUniformLocation(sShaderProgram, "texV"));
   GL_CHECK(glUniform1i(texV, 2));
 }
 
@@ -321,21 +321,21 @@ Draw(const unsigned char* aImage, int size, int aWidth, int aHeight)
   RLOG("Got %d x %d size: %d\n", aWidth, aHeight, size);
 
   const unsigned char* chanY = aImage;
-  glBindTexture(GL_TEXTURE_2D, textureY);
+  glBindTexture(GL_TEXTURE_2D, sTextureY);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth, aHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanY);
 
   const unsigned char* chanU = aImage + (aWidth * aHeight);
-  glBindTexture(GL_TEXTURE_2D, textureU);
+  glBindTexture(GL_TEXTURE_2D, sTextureU);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU);
 
   const unsigned char* chanV = aImage + (aWidth * aHeight) + (aWidth * aHeight / 4);
-  glBindTexture(GL_TEXTURE_2D, textureV);
+  glBindTexture(GL_TEXTURE_2D, sTextureV);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanV);
 
   GL_CHECK(glClearColor ( 0.0, 0.0, 0.0, 1.0 ));
   GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
   GL_CHECK(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
-  GL_CHECK(eglSwapBuffers(g_EGLDisplay, g_EGLWindowSurface));
+  GL_CHECK(eglSwapBuffers(sEGLDisplay, sEGLWindowSurface));
 }
 
 bool
@@ -347,9 +347,9 @@ KeepRunning()
 void
 Shutdown()
 {
-  GL_CHECK(glDeleteProgram(shaderProgram));
-  GL_CHECK(glDeleteShader(fragmentShader));
-  GL_CHECK(glDeleteShader(vertexShader));
+  GL_CHECK(glDeleteProgram(sShaderProgram));
+  GL_CHECK(glDeleteShader(sFragmentShader));
+  GL_CHECK(glDeleteShader(sVertexShader));
 }
 
 }
