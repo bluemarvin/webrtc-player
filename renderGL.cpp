@@ -16,6 +16,7 @@ static GLuint sFragmentShader;
 static GLuint sShaderProgram;
 static int sWidth;
 static int sHeight;
+static GLint sPosAttrib;
 
 static GLfloat sVertices[] = {
   -1.0f, -1.0f,
@@ -294,10 +295,10 @@ Initialize()
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-  GLint posAttrib = GL_CHECK(glGetAttribLocation(sShaderProgram, "position"));
+  sPosAttrib = GL_CHECK(glGetAttribLocation(sShaderProgram, "position"));
   GLint texAttrib = GL_CHECK(glGetAttribLocation(sShaderProgram, "texcoord"));
-  GL_CHECK(glEnableVertexAttribArray(posAttrib));
-  GL_CHECK(glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, sVertices));
+  GL_CHECK(glEnableVertexAttribArray(sPosAttrib));
+  GL_CHECK(glVertexAttribPointer(sPosAttrib, 2, GL_FLOAT, GL_FALSE, 0, sVertices));
   GL_CHECK(glEnableVertexAttribArray(texAttrib));
   GL_CHECK(glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, sTexcoord));
   GL_CHECK(glActiveTexture(GL_TEXTURE0));
@@ -317,25 +318,47 @@ Initialize()
 void
 Draw(const unsigned char* aImage, int size, int aWidth, int aHeight)
 {
+//  RLOG("Got %d x %d size: %d\n", aWidth, aHeight, size);
 
-  RLOG("Got %d x %d size: %d\n", aWidth, aHeight, size);
+  if ((aWidth > 0) && (aHeight > 0)) {
 
-  const unsigned char* chanY = aImage;
-  glBindTexture(GL_TEXTURE_2D, sTextureY);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth, aHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanY);
+    float wRatio = (float)sWidth / (float)aWidth;
+    float hRatio = (float)sHeight / (float)aHeight;
 
-  const unsigned char* chanU = aImage + (aWidth * aHeight);
-  glBindTexture(GL_TEXTURE_2D, sTextureU);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU);
+    float ratio = (wRatio < hRatio ? wRatio : hRatio);
 
-  const unsigned char* chanV = aImage + (aWidth * aHeight) + (aWidth * aHeight / 4);
-  glBindTexture(GL_TEXTURE_2D, sTextureV);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanV);
+    float cWidth = (float)aWidth * ratio / (float)sWidth;
+    float cHeight = (float)aHeight * ratio / (float)sHeight;
 
-  GL_CHECK(glClearColor ( 0.0, 0.0, 0.0, 1.0 ));
-  GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
-  GL_CHECK(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
-  GL_CHECK(eglSwapBuffers(sEGLDisplay, sEGLWindowSurface));
+//    RLOG("calculated: %f x %f\n", (float)aWidth * ratio / (float)sWidth, (float)aHeight * ratio / (float)sHeight);
+//    RLOG("calculated mapped: %f x %f\n", cWidth, cHeight);
+//    RLOG("cr: %f ar: %f\n", cWidth / cHeight, (float) aWidth / (float)aHeight);
+
+    sVertices[0] = -cWidth; sVertices[1] = -cHeight;
+    sVertices[2] =  cWidth; sVertices[3] = -cHeight;
+    sVertices[4] =  cWidth; sVertices[5] = cHeight;
+    sVertices[6] = -cWidth; sVertices[7] = cHeight;
+
+    GL_CHECK(glEnableVertexAttribArray(sPosAttrib));
+    GL_CHECK(glVertexAttribPointer(sPosAttrib, 2, GL_FLOAT, GL_FALSE, 0, sVertices));
+
+    const unsigned char* chanY = aImage;
+    GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureY));
+    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth, aHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanY));
+
+    const unsigned char* chanU = aImage + (aWidth * aHeight);
+    GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureU));
+    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanU));
+
+    const unsigned char* chanV = aImage + (aWidth * aHeight) + (aWidth * aHeight / 4);
+    GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureV));
+    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth / 2, aHeight / 2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanV));
+
+    GL_CHECK(glClearColor ( 0.0, 0.0, 0.0, 1.0 ));
+    GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
+    GL_CHECK(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+    GL_CHECK(eglSwapBuffers(sEGLDisplay, sEGLWindowSurface));
+  }
 }
 
 bool
