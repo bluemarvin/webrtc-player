@@ -2,6 +2,7 @@
 #include <GLES2/gl2.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "prtime.h"
 
 static EGLNativeWindowType sNativeWin = 0;
 static EGLDisplay sEGLDisplay;
@@ -17,6 +18,7 @@ static GLuint sShaderProgram;
 static int sWidth;
 static int sHeight;
 static GLint sPosAttrib;
+static PRTime sLastUpdate;
 
 static GLfloat sVertices[] = {
   -1.0f, -1.0f,
@@ -358,13 +360,15 @@ Draw(const unsigned char* aImage, int size, int aWidth, int aHeight)
     GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
     GL_CHECK(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
     GL_CHECK(eglSwapBuffers(sEGLDisplay, sEGLWindowSurface));
+
+    sLastUpdate = PR_Now();
   }
 }
 
 bool
 KeepRunning()
 {
-  return true;
+  return (sLastUpdate == 0) || ((PR_Now() - sLastUpdate) < 5000000);
 }
 
 void
