@@ -89,6 +89,7 @@ prepackage: webrtcplayer
 	cp -L $(PKG_LIBS) $(PKG_LIB_DIR)
 
 package: prepackage
+	$(ROKU_NDK)/platforms/Roku2/toolchain/bin/arm-linux-strip $(PKG_DIR)/webrtcplayer
 	@cp source/main.brs $(PKG_SOURCE_DIR)
 	$(ROKU_NDK)/bin/mkcramfs_roku $(PKG_DIR) $(PKG_FILE)
 
