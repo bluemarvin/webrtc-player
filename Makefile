@@ -35,12 +35,17 @@ $(GECKO_OBJ)/media/libyuv/libyuv_libyuv/libyuv.a.desc
 
 LIB_ROLLUP = $(BUILD_DIR)/librollup.a
 
-OBJ_FILES = $(BUILD_DIR)/main.o $(BUILD_DIR)/renderGL.o
+OBJ_FILES = $(BUILD_DIR)/main.o $(BUILD_DIR)/renderGL.o $(BUILD_DIR)/json.o
 
 all: webrtcplayer
 
-webrtcplayer: $(OBJ_FILES) $(LIB_ROLLUP)
-	$(CXX) $(OBJ_FILES) $(LIB_ROLLUP) $(LFLAGS) -o $@
+JSON = $(BUILD_DIR)/libyajl.a
+$(JSON):
+	cd 3rdparty/yajl; make
+
+
+webrtcplayer: $(OBJ_FILES) $(LIB_ROLLUP) $(JSON)
+	$(CXX) $(OBJ_FILES) $(JSON) $(LIB_ROLLUP) $(LFLAGS) -o $@
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
@@ -72,6 +77,14 @@ $(GECKO_DIST)/libplc4.so \
 $(GECKO_DIST)/libplds4.so \
 $(GECKO_DIST)/libnspr4.so
 
+PKG_IMAGES = \
+images/mm_icon_focus_hd.png \
+images/mm_icon_focus_sd.png \
+images/mm_icon_side_hd.png \
+images/mm_icon_side_sd.png \
+images/splash_screen_hd.png \
+images/splash_screen_sd.png
+
 # $(GECKO_DIST)/libnss3.so \
 # $(GECKO_DIST)/libnssckbi.so \
 # $(GECKO_DIST)/libnssdbm3.so \
@@ -86,6 +99,7 @@ prepackage: webrtcplayer
 	@mkdir -p $(PKG_SOURCE_DIR)
 	@cp manifest $(PKG_DIR)
 	@cp webrtcplayer $(PKG_DIR)
+	@cp $(PKG_IMAGES) $(PKG_IMAGE_DIR)
 	cp -L $(PKG_LIBS) $(PKG_LIB_DIR)
 
 package: prepackage

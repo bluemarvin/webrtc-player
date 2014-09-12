@@ -320,7 +320,7 @@ Initialize()
 void
 Draw(const unsigned char* aImage, int size, int aWidth, int aHeight)
 {
-//  RLOG("Got %d x %d size: %d\n", aWidth, aHeight, size);
+  RLOG("Got %d x %d size: %d\n", aWidth, aHeight, size);
 
   if ((aWidth > 0) && (aHeight > 0)) {
 
