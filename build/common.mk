@@ -1,4 +1,5 @@
 INCLUDE = \
+-I$(GECKO_ROOT)/dom/media \
 -I$(GECKO_ROOT)/media/standalone/include \
 -I$(GECKO_ROOT)/media/webrtc/signaling/test \
 -I$(GECKO_ROOT)/media/webrtc/trunk/testing/gtest/include \
@@ -14,6 +15,7 @@ INCLUDE = \
 -I$(GECKO_ROOT)/media/webrtc/signaling/src/mediapipeline \
 -I$(GECKO_ROOT)/media/webrtc/signaling/src/sipcc/include \
 -I$(GECKO_ROOT)/media/webrtc/signaling/src/peerconnection \
+-I$(GECKO_ROOT)/media/webrtc/ \
 -I$(GECKO_ROOT)/media/webrtc/signaling/media-conduit \
 -I$(GECKO_ROOT)/media/webrtc/trunk/third_party/libjingle/source/ \
 -I$(GECKO_ROOT)/media/mtransport/third_party/nICEr/src/ice \
@@ -28,8 +30,10 @@ INCLUDE = \
 -I$(GECKO_ROOT)/media/mtransport/third_party/nrappkit/src/event \
 -I$(GECKO_ROOT)/media/mtransport/third_party/nrappkit/src/port/darwin/include \
 -I$(GECKO_ROOT)/media/webrtc/trunk/webrtc \
+-I$(GECKO_ROOT)/xpcom/libxpcomrt \
 -I$(GECKO_OBJ)/dist/include/nspr \
 -I$(GECKO_OBJ)/dist/include \
+-I$(GECKO_OBJ)/dist/include/mozilla \
 -I$(GECKO_OBJ)/dist/include/nss \
 -I3rdparty/yajl
 

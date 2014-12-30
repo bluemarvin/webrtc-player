@@ -24,6 +24,8 @@ CFLAGS = \
 -DBUILD_PLATFORM_ROKU2 \
 -DROKU \
 -DLINUX \
+-DMOZILLA_INTERNAL_API \
+-DMOZILLA_XPCOMRT_API \
 -idirafter $(ROKU_PLATFORM)/include \
 -idirafter $(ROKU_PLATFORM)/usr/include \
 -DMOZILLA_CLIENT \
@@ -71,7 +73,7 @@ LFLAGS = \
 -Wl,-Bstatic -lssl \
 -lcryptohi \
 -Wl,-Bstatic -lplc4 \
--Wl,-Bdynamic -lnspr4 \
+-Wl,-Bstatic -lnspr4 \
 -Wl,-Bstatic -lcertdb \
 -Wl,-Bstatic -lcerthi \
 -Wl,-Bstatic -lpkixpki \
@@ -93,9 +95,11 @@ LFLAGS = \
 -Wl,-Bstatic -lnss \
 -Wl,-Bstatic -lpk11wrap \
 -Wl,-Bstatic -lcerthi \
--Wl,-Bdynamic -lnssutil3 \
--Wl,-Bdynamic -lplds4 \
--Wl,-Bdynamic -lplc4 \
+-Wl,-Bstatic -lsmime \
+-Wl,-Bstatic -lnssutil \
+-Wl,-Bstatic -lplds4 \
+-Wl,-Bstatic -lplc4 \
+-Wl,-Bstatic -lfreebl \
 -fvisibility-inlines-hidden \
 -Wl,--gc-sections \
 -Wl,--copy-dt-needed-entries \
