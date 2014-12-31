@@ -527,12 +527,13 @@ main(int argc, char* argv[])
     sock = nullptr;
   }
   else {
-    exit(-1);
+    LOG("ERROR: PR_Listen FAILED.\n");
+    exit(1);
   }
 
   if (!state->mSocket) {
     LOG("ERROR: Failed to create socket\n");
-    exit(-1);
+    exit(1);
   }
 
   mozilla::IceConfiguration cfg;

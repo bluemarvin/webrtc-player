@@ -5,40 +5,82 @@ CXX = $(ROKU_TOOLCHAIN)/bin/$(ROKU_TOOLPREFIX)-g++
 CC = $(ROKU_TOOLCHAIN)/bin/$(ROKU_TOOLPREFIX)-gcc
 AR = $(ROKU_TOOLCHAIN)/bin/$(ROKU_TOOLPREFIX)-ar
 
-CFLAGS = \
--I../../dist/system_wrappers \
--D_FILE_OFFSET_BITS=64 \
--mcpu=arm1176jzf-s \
--Wno-psabi \
--ffunction-sections \
--fdata-sections \
--fvisibility=hidden \
--Wall \
--DMOZ_GLUE_IN_PROGRAM \
--DMOZILLA_MEDIA_STANDALONE \
+DEBUG_CFLAGS = \
+-D_FILE_OFFSET_BITS='64' \
+-DCHROMIUM_BUILD \
+-DUSE_LIBJPEG_TURBO='1' \
+-DUSE_NSS='1' \
+-DENABLE_ONE_CLICK_SIGNIN \
+-DGTK_DISABLE_SINGLE_INCLUDES='1' \
+-D_ISOC99_SOURCE='1' \
+-DENABLE_REMOTING='1' \
+-DENABLE_WEBRTC='1' \
+-DENABLE_CONFIGURATION_POLICY \
+-DENABLE_INPUT_SPEECH \
+-DENABLE_NOTIFICATIONS \
+-DENABLE_GPU='1' \
+-DENABLE_EGLIMAGE='1' \
+-DUSE_SKIA='1' \
+-DENABLE_TASK_MANAGER='1' \
+-DENABLE_WEB_INTENTS='1' \
+-DENABLE_EXTENSIONS='1' \
+-DENABLE_PLUGIN_INSTALLATION='1' \
+-DENABLE_PROTECTOR_SERVICE='1' \
+-DENABLE_SESSION_SERVICE='1' \
+-DENABLE_THEMES='1' \
+-DENABLE_BACKGROUND='1' \
+-DENABLE_AUTOMATION='1' \
+-DENABLE_PRINTING='1' \
+-DENABLE_CAPTIVE_PORTAL_DETECTION='1' \
+-DLOG4CXX_STATIC \
+-D_NO_LOG4CXX \
+-DUSE_SSLEAY \
+-D_CPR_USE_EXTERNAL_LOGGER \
+-DWEBRTC_RELATIVE_PATH \
+-DHAVE_WEBRTC_VIDEO \
+-DHAVE_WEBRTC_VOICE \
+-DHAVE_STDINT_H='1' \
+-DHAVE_STDLIB_H='1' \
+-DHAVE_UINT8_T='1' \
+-DHAVE_UINT16_T='1' \
+-DHAVE_UINT32_T='1' \
+-DHAVE_UINT64_T='1' \
+-DMOZILLA_INTERNAL_API \
+-DMOZILLA_XPCOMRT_API \
+-DNO_CHROMIUM_LOGGING \
 -DUSE_FAKE_MEDIA_STREAMS \
 -DUSE_FAKE_PCOBSERVER \
+-DOS_LINUX \
+-DSIP_OS_LINUX \
+-D_GNU_SOURCE \
+-DLINUX \
+-DGIPS_VER='3510' \
+-DSECLIB_OPENSSL \
+-D__STDC_FORMAT_MACROS \
+-DDYNAMIC_ANNOTATIONS_ENABLED='1' \
+-DWTF_USE_DYNAMIC_ANNOTATIONS='1' \
+-D_DEBUG \
+-DMOZ_GLUE_IN_PROGRAM \
 -DAB_CD=en-US \
 -DNO_NSPR_10_SUPPORT \
 -fPIC \
 -DBUILD_PLATFORM_ROKU2 \
 -DROKU \
 -DLINUX \
--DMOZILLA_INTERNAL_API \
--DMOZILLA_XPCOMRT_API \
--idirafter $(ROKU_PLATFORM)/include \
--idirafter $(ROKU_PLATFORM)/usr/include \
 -DMOZILLA_CLIENT \
 -MD \
 -MP \
+-include $(GECKO_OBJ)/mozilla-config.h \
+-idirafter $(ROKU_PLATFORM)/include \
+-idirafter $(ROKU_PLATFORM)/usr/include \
 -DBUILD_PLATFORM_ROKU2 \
+-DROKU \
+-DLINUX \
 -Wall \
--Wpointer-arith \
--Woverloaded-virtual \
--Werror=int-to-pointer-cast \
--Werror=type-limits \
 -Wempty-body \
+-Woverloaded-virtual \
 -Wsign-compare \
+-Wwrite-strings \
 -Wno-invalid-offsetof \
 -fvisibility-inlines-hidden \
 -mcpu=arm1176jzf-s \
@@ -47,6 +89,102 @@ CFLAGS = \
 -Wno-type-limits \
 -U_FORTIFY_SOURCE \
 -fno-short-enums \
+-fno-exceptions \
+-fno-exceptions \
+-fno-strict-aliasing \
+-fno-rtti \
+-fno-exceptions \
+-fno-math-errno \
+-std=gnu++0x \
+-pthread \
+-pipe \
+-DDEBUG \
+-DTRACING \
+-g
+
+CFLAGS = \
+-D_FILE_OFFSET_BITS='64' \
+-DCHROMIUM_BUILD \
+-DUSE_LIBJPEG_TURBO='1' \
+-DUSE_NSS='1' \
+-DENABLE_ONE_CLICK_SIGNIN \
+-DGTK_DISABLE_SINGLE_INCLUDES='1' \
+-D_ISOC99_SOURCE='1' \
+-DENABLE_REMOTING='1' \
+-DENABLE_WEBRTC='1' \
+-DENABLE_CONFIGURATION_POLICY \
+-DENABLE_INPUT_SPEECH \
+-DENABLE_NOTIFICATIONS \
+-DENABLE_GPU='1' \
+-DENABLE_EGLIMAGE='1' \
+-DUSE_SKIA='1' \
+-DENABLE_TASK_MANAGER='1' \
+-DENABLE_WEB_INTENTS='1' \
+-DENABLE_EXTENSIONS='1' \
+-DENABLE_PLUGIN_INSTALLATION='1' \
+-DENABLE_PROTECTOR_SERVICE='1' \
+-DENABLE_SESSION_SERVICE='1' \
+-DENABLE_THEMES='1' \
+-DENABLE_BACKGROUND='1' \
+-DENABLE_AUTOMATION='1' \
+-DENABLE_PRINTING='1' \
+-DENABLE_CAPTIVE_PORTAL_DETECTION='1' \
+-DLOG4CXX_STATIC \
+-D_NO_LOG4CXX \
+-DUSE_SSLEAY \
+-D_CPR_USE_EXTERNAL_LOGGER \
+-DWEBRTC_RELATIVE_PATH \
+-DHAVE_WEBRTC_VIDEO \
+-DHAVE_WEBRTC_VOICE \
+-DHAVE_STDINT_H='1' \
+-DHAVE_STDLIB_H='1' \
+-DHAVE_UINT8_T='1' \
+-DHAVE_UINT16_T='1' \
+-DHAVE_UINT32_T='1' \
+-DHAVE_UINT64_T='1' \
+-DMOZILLA_INTERNAL_API \
+-DMOZILLA_XPCOMRT_API \
+-DNO_CHROMIUM_LOGGING \
+-DUSE_FAKE_MEDIA_STREAMS \
+-DUSE_FAKE_PCOBSERVER \
+-DOS_LINUX \
+-DSIP_OS_LINUX \
+-D_GNU_SOURCE \
+-DLINUX \
+-DGIPS_VER='3510' \
+-DSECLIB_OPENSSL \
+-D__STDC_FORMAT_MACROS \
+-DNDEBUG \
+-DNVALGRIND \
+-DDYNAMIC_ANNOTATIONS_ENABLED='0' \
+-DMOZ_GLUE_IN_PROGRAM \
+-DAB_CD=en-US \
+-DNO_NSPR_10_SUPPORT \
+-DBUILD_PLATFORM_ROKU2 \
+-DROKU \
+-DLINUX \
+-DMOZILLA_CLIENT \
+-fPIC \
+-MD \
+-MP \
+-include $(GECKO_OBJ)/mozilla-config.h \
+-idirafter $(ROKU_PLATFORM)/include \
+-idirafter $(ROKU_PLATFORM)/usr/include \
+-Wall \
+-Wempty-body \
+-Woverloaded-virtual \
+-Wsign-compare \
+-Wwrite-strings \
+-Wno-invalid-offsetof \
+-fvisibility-inlines-hidden \
+-mcpu=arm1176jzf-s \
+-Wno-psabi \
+-Wno-uninitialized \
+-Wno-type-limits \
+-U_FORTIFY_SOURCE \
+-fno-short-enums \
+-fno-exceptions \
+-fno-exceptions \
 -fno-strict-aliasing \
 -fno-rtti \
 -fno-exceptions \
@@ -56,8 +194,8 @@ CFLAGS = \
 -pipe \
 -DNDEBUG \
 -DTRIMMED \
--c \
--O3 \
+-g \
+-O \
 -fomit-frame-pointer
 
 LFLAGS = \
@@ -71,9 +209,6 @@ LFLAGS = \
 -Wl,-z,text \
 -Wl,--build-id \
 -Wl,-Bstatic -lssl \
--lcryptohi \
--Wl,-Bstatic -lplc4 \
--Wl,-Bstatic -lnspr4 \
 -Wl,-Bstatic -lcertdb \
 -Wl,-Bstatic -lcerthi \
 -Wl,-Bstatic -lpkixpki \
@@ -93,13 +228,15 @@ LFLAGS = \
 -Wl,-Bstatic -lnssdev \
 -Wl,-Bstatic -lnssb \
 -Wl,-Bstatic -lnss \
--Wl,-Bstatic -lpk11wrap \
 -Wl,-Bstatic -lcerthi \
 -Wl,-Bstatic -lsmime \
--Wl,-Bstatic -lnssutil \
 -Wl,-Bstatic -lplds4 \
 -Wl,-Bstatic -lplc4 \
--Wl,-Bstatic -lfreebl \
+-Wl,-Bstatic -lsoftokn \
+-Wl,-Bstatic -lnssutil \
+-WL,-Bstatic -lcryptohi \
+-Wl,-Bstatic -lnspr4 \
+-Wl,-Bstatic -lplc4 \
 -fvisibility-inlines-hidden \
 -Wl,--gc-sections \
 -Wl,--copy-dt-needed-entries \
@@ -108,7 +245,7 @@ LFLAGS = \
 -Wl,-rpath-link,$(ROKU_PLATFORM)/usr/lib \
 -Wl,-rpath-link,\$$ORIGIN/./lib \
 -Wl,-Bdynamic -lpthread \
--Wl,-Bdynamic -lc\
+-Wl,-Bdynamic -lc \
 -Wl,-Bdynamic -lrt \
 -Wl,-Bdynamic -lRokuNDK \
 -Wl,-Bdynamic -lEGL \

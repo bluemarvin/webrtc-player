@@ -34,6 +34,9 @@ $(GECKO_OBJ)/dom/media/xpcomrt/libmediaxpcomrt.a.desc \
 $(GECKO_OBJ)/dom/media/xpcomrt/libmediaxpcomrt.a.desc \
 $(GECKO_OBJ)/netwerk/mini/libneckomini.a.desc \
 $(GECKO_OBJ)/intl/unicharutil/util/xpcomrt/libunicharutil_xpcomrt.a.desc \
+$(GECKO_OBJ)/security/nss/lib/pk11wrap/static/libpk11wrap_s.a.desc \
+$(GECKO_OBJ)/security/nss/lib/freebl/static/libfreebl_s.a.desc \
+$(GECKO_OBJ)/db/sqlite3/src/libdb_sqlite3_src.a.desc \
 $(GECKO_OBJ)/media/libyuv/libyuv_libyuv/libyuv.a.desc
 
 LIB_ROLLUP = $(BUILD_DIR)/librollup.a
@@ -48,7 +51,7 @@ $(JSON):
 
 
 webrtcplayer: $(OBJ_FILES) $(LIB_ROLLUP) $(JSON)
-	$(CXX) $(OBJ_FILES) $(JSON) $(LIB_ROLLUP) $(LFLAGS) -o $@
+	$(CXX) $(OBJ_FILES) $(JSON) $(LIB_ROLLUP) $(LFLAGS) $(LIB_ROLLUP) -o $@
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
@@ -70,14 +73,20 @@ clobber: clean
 	rm -f $(PKG_FILE)
 
 PKG_LIBS = \
-$(GECKO_DIST)/libmozalloc.so \
-$(GECKO_DIST)/libmozsqlite3.so \
-$(GECKO_DIST)/libsoftokn3.so
+$(GECKO_DIST)/libmozalloc.so
 
+# $(GECKO_DIST)/libmozsqlite3.so \
+# $(GECKO_DIST)/libsoftokn3.so \
 # $(GECKO_DIST)/libfreebl3.so \
 # $(GECKO_DIST)/libplc4.so \
 # $(GECKO_DIST)/libplds4.so \
-# $(GECKO_DIST)/libnspr4.so
+# $(GECKO_DIST)/libnspr4.so \
+# $(GECKO_DIST)/libnss3.so \
+# $(GECKO_DIST)/libnssckbi.so \
+# $(GECKO_DIST)/libnssdbm3.so \
+# $(GECKO_DIST)/libssl3.so
+# $(GECKO_DIST)/libsmime3.so \
+# $(GECKO_DIST)/libnssutil3.so \
 
 PKG_IMAGES = \
 images/mm_icon_focus_hd.png \
@@ -86,13 +95,6 @@ images/mm_icon_side_hd.png \
 images/mm_icon_side_sd.png \
 images/splash_screen_hd.png \
 images/splash_screen_sd.png
-
-# $(GECKO_DIST)/libnss3.so \
-# $(GECKO_DIST)/libnssckbi.so \
-# $(GECKO_DIST)/libnssdbm3.so \
-# $(GECKO_DIST)/libssl3.so
-# $(GECKO_DIST)/libsmime3.so \
-# $(GECKO_DIST)/libnssutil3.so \
 
 prepackage: webrtcplayer
 	echo Creating package...
