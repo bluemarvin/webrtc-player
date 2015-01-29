@@ -345,6 +345,7 @@ Draw(const unsigned char* aImage, int size, int aWidth, int aHeight)
     GL_CHECK(glVertexAttribPointer(sPosAttrib, 2, GL_FLOAT, GL_FALSE, 0, sVertices));
 
     const unsigned char* chanY = aImage;
+    GL_CHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
     GL_CHECK(glBindTexture(GL_TEXTURE_2D, sTextureY));
     GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, aWidth, aHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, chanY));
 
